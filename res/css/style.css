@@ -1,0 +1,23 @@
+html {
+    display: grid;
+    place-items: center;
+    height: 100vh;
+}
+
+body {
+    margin:0;
+    background-color: #222;
+}
+
+* {
+    font-family: monospace;
+}
+
+.fps-counter {
+    position: absolute;
+    top: 1em;
+    left: 1em;
+    margin: 0;
+    color: white;
+    font-size: 2em;
+}
