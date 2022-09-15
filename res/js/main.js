@@ -4,7 +4,7 @@ const PLAYER_SIZE = 50
 
 const GRAVITY = 1
 const PLAYER_SPEED = 3
-const COLLISION_BUFFER_POS = 10
+const COLLISION_BUFFER_POS = 20
 
 function setup() {
   createCanvas(700, 700)
@@ -38,6 +38,13 @@ function draw() {
 
 class Entity {
   static idCounter = 1
+  static defaultCollision = {
+    all: false,
+    top: false,
+    rig: false,
+    bot: false,
+    lef: false
+  }
 
   constructor(x, y, w, h) {
     this.id = Entity.idCounter++;
@@ -46,9 +53,19 @@ class Entity {
     this.vel = createVector(0, 0)
     this.color = [255, 255, 255]
     this.type = 0
+    this.resetCollision()
+    this.updatePrevCollision()
 
     this.vel.limit(COLLISION_BUFFER_POS - 0.001)
 
+  }
+
+  resetCollision() {
+    this.collision = Object.assign({}, Platform.defaultCollision)
+  }
+
+  updatePrevCollision() {
+    this.prevCollision = Object.assign({}, this.collision)
   }
 
   update() {
@@ -73,7 +90,7 @@ class Entity {
     }
     if (this.pos.y + this.dim.y >= height) {
       this.pos.y = height - this.dim.y
-      this.onGround = true
+      this.collision.bot = true
     }
     if (this.pos.x <= 0) {
       this.pos.x = 0
@@ -91,42 +108,88 @@ class Entity {
 
   checkCollisions() {
     const a = this
-    a.onGround = false
     for (const entity of entities) {
       const b = entity
 
       if (a === b) continue
+      b.resetCollision()
 
-      const collisionT = a.pos.y + a.dim.y > b.pos.y
-      const collisionR = a.pos.x < b.pos.x + b.dim.x
-      const collisionB = a.pos.y < b.pos.y + b.dim.y
-      const collisionL = a.pos.x + a.dim.x > b.pos.x
+      const collisionT = a.pos.y + a.dim.y >= b.pos.y
+      const collisionB = a.pos.y <= b.pos.y + b.dim.y
+      const collisionR = a.pos.x <= b.pos.x + b.dim.x
+      const collisionL = a.pos.x + a.dim.x >= b.pos.x
 
 
+      a.updatePrevCollision()
       if (collisionT && collisionR && collisionB && collisionL) {
-        if (collisionT && a.pos.y + a.dim.y < b.pos.y + COLLISION_BUFFER_POS && a.vel.y >= 0) {
-          if (a.vel.y > 0) a.vel.y = 0
-          a.pos.y = b.pos.y - a.dim.y
-          a.onGround = a.vel.y === 0
+        a.collision.all = true
+        b.collision.all = true
+
+        if (collisionT && a.pos.y + a.dim.y <= b.pos.y + COLLISION_BUFFER_POS && a.vel.y >= 0 &&
+          a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x) {
+          this.#colideT(a, b)
           continue
-        } else if (collisionB && a.pos.y > b.pos.y + b.dim.y - COLLISION_BUFFER_POS && a.vel.y <= 0) {
-          a.pos.y = b.pos.y + b.dim.y
-          a.vel.y = 0
+        } else {
+          a.collision.bot = false
+          b.collision.top = false
+        }
+        if (collisionB && a.pos.y >= b.pos.y + b.dim.y - COLLISION_BUFFER_POS && a.vel.y <= 0 &&
+          a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x) {
+          this.#colideB(a, b)
           continue
+        } else {
+          a.collision.bot = false
+          b.collision.top = false
         }
 
-        if (collisionR && a.pos.x > b.pos.x + b.dim.x - COLLISION_BUFFER_POS) {
-          a.pos.x = b.pos.x + b.dim.x
-          a.vel.x = 0
-        } else if (collisionL && a.pos.x + a.dim.x < b.pos.x + COLLISION_BUFFER_POS) {
-          a.pos.x = b.pos.x - a.dim.x
-          a.vel.x = 0
+        if (collisionR && a.pos.x >= b.pos.x + b.dim.x - COLLISION_BUFFER_POS) {
+          this.#colideR(a, b)
+        } else {
+          a.collision.lef = false
+          b.collision.rig = false
+        } 
+        if (collisionL && a.pos.x + a.dim.x <= b.pos.x + COLLISION_BUFFER_POS) {
+          this.#colideL(a, b)
+        } else {
+          a.collision.rig = false
+          b.collision.lef = false
         }
       }
-
-
-
     }
+  }
+
+  // b entity's TOP
+  #colideT(a, b) {
+    if (a.vel.y > 0) a.vel.y = 0
+    a.pos.y = b.pos.y - a.dim.y
+    a.collision.bot = true
+    b.collision.top = true
+  }
+  
+  // b entity's BOTTOM
+  #colideB(a, b) {
+    a.pos.y = b.pos.y + b.dim.y
+    a.vel.y = 0
+    a.collision.top = true
+    b.collision.bot = true
+  }
+  
+  // b entity's RIGHT
+  #colideR(a, b) {
+    if (a.prevCollision.bot) return
+    if (a.vel.x < 0) a.vel.x = 0 
+    a.pos.x = b.pos.x + b.dim.x
+    a.collision.lef = true
+    b.collision.rig = true
+  }
+  
+  // b entity's LEFT
+  #colideL(a, b) {
+    if (a.prevCollision.bot) return
+    if (a.vel.x > 0) a.vel.x = 0
+    a.pos.x = b.pos.x - a.dim.x
+    a.collision.rig = true
+    b.collision.lef = true
   }
 
 }
@@ -137,13 +200,15 @@ class Player extends Entity {
   constructor(x, y) {
     super(x, y, PLAYER_SIZE, PLAYER_SIZE)
     this.color = [140, 255, 100]
-    this.onGround = false
     this.type = 1
+    this.defaultColor = [255, 255, 255]
   }
 
   update() {
 
-    this.vel.add(createVector(0, GRAVITY / 4))
+    this.vel.add(createVector(0, GRAVITY / 3))
+
+    this.vel.limit(COLLISION_BUFFER_POS < 20 ? COLLISION_BUFFER_POS - 0.001 : 20)
     this.pos.add(this.vel)
 
     this.move()
@@ -154,8 +219,8 @@ class Player extends Entity {
     if (!keyIsPressed) return (this.vel.x = 0);
 
     // NO CONTROLS IN MIDAIR
-    // if (this.onGround) this.vel.x = 0
-    // if (!this.onGround) return
+    // if (this.collision.bot) this.vel.x = 0
+    // if (!this.collision.bot) return
 
     if (keyIsDown(65)) {
       this.vel.x = -PLAYER_SPEED;
@@ -163,8 +228,8 @@ class Player extends Entity {
     if (keyIsDown(68)) {
       this.vel.x = PLAYER_SPEED;
     }
-    if (keyIsDown(32) && this.onGround) {
-      this.vel.add(createVector(0, -10));
+    if (keyIsDown(32) && this.collision.bot) {
+      this.vel.add(createVector(0, -12));
     }
   }
 
@@ -176,5 +241,16 @@ class Platform extends Entity {
   constructor(x, y, w, h) {
     super(x, y, w, h)
     this.type = 2
+    this.defaultColor = [255, 255, 255]
+  }
+
+  update() {
+    if (this.collision.all) {
+      this.color = [255, 140, 100]
+    } else {
+      this.color = this.defaultColor
+    }
+
+    super.update()
   }
 }
