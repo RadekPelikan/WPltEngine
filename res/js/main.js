@@ -125,17 +125,16 @@ class Entity {
         a.collision.all = true
         b.collision.all = true
 
-        if (collisionT && a.pos.y + a.dim.y <= b.pos.y + COLLISION_BUFFER_POS && a.vel.y >= 0 &&
-          a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x) {
-          this.#colideT(a, b)
+        const horCond = a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x
+        if (collisionT && a.pos.y + a.dim.y <= b.pos.y + COLLISION_BUFFER_POS && a.vel.y >= 0 && horCond) {
+          this.colideT(a, b)
           continue
         } else {
           a.collision.bot = false
           b.collision.top = false
         }
-        if (collisionB && a.pos.y >= b.pos.y + b.dim.y - COLLISION_BUFFER_POS && a.vel.y <= 0 &&
-          a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x) {
-          this.#colideB(a, b)
+        if (collisionB && a.pos.y >= b.pos.y + b.dim.y - COLLISION_BUFFER_POS && a.vel.y <= 0 && horCond) {
+          this.colideB(a, b)
           continue
         } else {
           a.collision.bot = false
@@ -143,13 +142,13 @@ class Entity {
         }
 
         if (collisionR && a.pos.x >= b.pos.x + b.dim.x - COLLISION_BUFFER_POS) {
-          this.#colideR(a, b)
+          this.colideR(a, b)
         } else {
           a.collision.lef = false
           b.collision.rig = false
-        } 
+        }
         if (collisionL && a.pos.x + a.dim.x <= b.pos.x + COLLISION_BUFFER_POS) {
-          this.#colideL(a, b)
+          this.colideL(a, b)
         } else {
           a.collision.rig = false
           b.collision.lef = false
@@ -159,37 +158,37 @@ class Entity {
   }
 
   // b entity's TOP
-  #colideT(a, b) {
+  colideT(a, b) {
     if (a.vel.y > 0) a.vel.y = 0
     a.pos.y = b.pos.y - a.dim.y
     a.collision.bot = true
     b.collision.top = true
   }
-  
+
   // b entity's BOTTOM
-  #colideB(a, b) {
+  colideB(a, b) {
     a.pos.y = b.pos.y + b.dim.y
     a.vel.y = 0
     a.collision.top = true
     b.collision.bot = true
   }
-  
+
   // b entity's RIGHT
-  #colideR(a, b) {
-    if (a.prevCollision.bot) return
-    if (a.vel.x < 0) a.vel.x = 0 
-    a.pos.x = b.pos.x + b.dim.x
+  colideR(a, b) {
+    if (a.vel.x < 0) a.vel.x = 0
     a.collision.lef = true
     b.collision.rig = true
+    // This will maybe bug out when falling, collisions may not occur for right side of b
+    if (a.prevCollision.bot) a.pos.x = b.pos.x + b.dim.x
   }
-  
+
   // b entity's LEFT
-  #colideL(a, b) {
-    if (a.prevCollision.bot) return
+  colideL(a, b) {
     if (a.vel.x > 0) a.vel.x = 0
-    a.pos.x = b.pos.x - a.dim.x
     a.collision.rig = true
     b.collision.lef = true
+    // This will maybe bug out when falling, collisions may not occur for left side of b
+    if (a.prevCollision.bot) a.pos.x = b.pos.x - a.dim.x
   }
 
 }
@@ -230,6 +229,7 @@ class Player extends Entity {
     }
     if (keyIsDown(32) && this.collision.bot) {
       this.vel.add(createVector(0, -12));
+      this.collision.bot = false
     }
   }
 
