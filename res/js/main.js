@@ -39,7 +39,7 @@ function draw() {
 class Entity {
   static idCounter = 1
   static defaultCollision = {
-    all: false,
+    any: false,
     top: false,
     rig: false,
     bot: false,
@@ -108,10 +108,13 @@ class Entity {
 
   checkCollisions() {
     const a = this
+    a.updatePrevCollision()
+    a.resetCollision()
     for (const entity of entities) {
       const b = entity
 
       if (a === b) continue
+      b.updatePrevCollision()
       b.resetCollision()
 
       const collisionT = a.pos.y + a.dim.y >= b.pos.y
@@ -120,10 +123,9 @@ class Entity {
       const collisionL = a.pos.x + a.dim.x >= b.pos.x
 
 
-      a.updatePrevCollision()
       if (collisionT && collisionR && collisionB && collisionL) {
-        a.collision.all = true
-        b.collision.all = true
+        a.collision.any = true
+        b.collision.any = true
 
         const horCond = a.pos.x + a.dim.x > b.pos.x && a.pos.x < b.pos.x + b.dim.x
         if (collisionT && a.pos.y + a.dim.y <= b.pos.y + COLLISION_BUFFER_POS && a.vel.y >= 0 && horCond) {
@@ -201,11 +203,11 @@ class Player extends Entity {
     this.color = [140, 255, 100]
     this.type = 1
     this.defaultColor = [255, 255, 255]
+    this.mode = 1
   }
 
   update() {
-
-    this.vel.add(createVector(0, GRAVITY / 3))
+    if (this.mode === 1) this.vel.add(createVector(0, GRAVITY / 3))
 
     this.vel.limit(COLLISION_BUFFER_POS < 20 ? COLLISION_BUFFER_POS - 0.001 : 20)
     this.pos.add(this.vel)
@@ -215,25 +217,47 @@ class Player extends Entity {
   }
 
   move() {
-    if (!keyIsPressed) return (this.vel.x = 0);
 
-    // NO CONTROLS IN MIDAIR
-    // if (this.collision.bot) this.vel.x = 0
-    // if (!this.collision.bot) return
+    switch (this.mode) {
+      case 1:
+        console.log(this.collision.bot)
+        if (!keyIsPressed) return (this.vel.x = 0);
 
-    if (keyIsDown(65)) {
-      this.vel.x = -PLAYER_SPEED;
-    }
-    if (keyIsDown(68)) {
-      this.vel.x = PLAYER_SPEED;
-    }
-    if (keyIsDown(32) && this.collision.bot) {
-      this.vel.add(createVector(0, -12));
-      this.collision.bot = false
+        // NO CONTROLS IN MIDAIR
+        // if (this.collision.bot) this.vel.x = 0
+        // if (!this.collision.bot) return
+
+        if (keyIsDown(65)) {
+          this.vel.x = -PLAYER_SPEED;
+        }
+        if (keyIsDown(68)) {
+          this.vel.x = PLAYER_SPEED;
+        }
+        if (keyIsDown(32) && this.collision.bot) {
+          this.vel.add(createVector(0, -12));
+          this.collision.bot = false
+        }
+        break;
+      case 2:
+        if (!keyIsPressed) return (this.vel.mult(0));
+        if (keyIsDown(87)) {
+          this.vel.y = -PLAYER_SPEED;
+        }
+        if (keyIsDown(83)) {
+          this.vel.y = PLAYER_SPEED;
+        }
+        if (keyIsDown(65)) {
+          this.vel.x = -PLAYER_SPEED;
+        }
+        if (keyIsDown(68)) {
+          this.vel.x = PLAYER_SPEED;
+        }
+        break;
     }
   }
-
 }
+
+
 
 
 class Platform extends Entity {
@@ -245,7 +269,7 @@ class Platform extends Entity {
   }
 
   update() {
-    if (this.collision.all) {
+    if (this.collision.any) {
       this.color = [255, 140, 100]
     } else {
       this.color = this.defaultColor
